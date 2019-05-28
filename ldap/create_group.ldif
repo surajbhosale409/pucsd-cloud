@@ -1,0 +1,6 @@
+dn: cn=students,ou=Group,dc=rpi,dc=com
+objectClass: posixGroup
+objectClass: top
+cn: students
+userPassword: {crypt}x
+gidNumber: 1000

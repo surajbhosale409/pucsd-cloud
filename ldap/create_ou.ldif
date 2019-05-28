@@ -1,0 +1,9 @@
+dn: ou=Group,dc=rpi,dc=com
+objectClass: organizationalUnit
+objectClass: top
+ou: Group
+
+dn: ou=Students,dc=rpi,dc=com
+objectClass: organizationalUnit
+objectClass: top
+ou: Students

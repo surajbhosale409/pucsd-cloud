@@ -1,0 +1,156 @@
+#!/usr/bin/python
+
+import os, sys, argparse, requests, getpass, json, time
+from termcolor import colored
+
+user = os.environ["USER"]
+home = os.environ["HOME"]
+cwd = os.getcwd()
+cwd = cwd[len(home)+1:]
+
+url = "http://192.168.43.5:5000/"
+
+status_colors = {"created":"cyan", "in-progress":"yellow", "completed":"green", "failed":"red"}
+
+parser = argparse.ArgumentParser()
+
+group = parser.add_mutually_exclusive_group(required=True)
+group.add_argument("-c","--create", action="store_true", help="Used to create a job")
+group.add_argument("-l","--list",action="store_true",help="Used to list jobs")
+group.add_argument("-r","--result",action="store_true",help="Used to go to results directory of a job")
+group.add_argument("-s","--status",action="store_true",help="Used to keep watching current status of a job")
+group.add_argument("-t","--tools",action="store_true",help="Used to list the available tools")
+
+parser.add_argument("-f", "--file", help="Specify file path, to be added in job")
+parser.add_argument("-i", "--index", help="Used to:- [1] Specify job index when passed with --status/--result [ job index can be obtained by listing jobs using --list ] , [2] Specify tool index when passed with --create option. [ tool index can be obtained by listing tools using --tools option ]  ")
+
+
+def tools(print_flag=True):
+    #Listing available tools for jobs
+    res = requests.get(url+"tools") 
+    tools_ls = res.json()
+    
+    if print_flag:
+        print(colored("Please select the tool for job:","green"))
+        i = 0
+        for tool in tools_ls:
+            print(colored("["+str(i)+"] "+tool,"blue"))
+            i += 1
+    return tools_ls
+
+
+def create():
+    job_data = {}
+    
+    #Checking for job tool
+    if args.index:
+        tools_ls = tools(False)
+        index = args.index
+    else:
+        tools_ls = tools()
+        index = input()
+    tool = tools_ls[index]
+
+    
+    #Checking for file path
+    if args.file:
+        file_path = args.file
+    else:
+        print(colored("Please specify the file path [Relative from current working directory]: ","green"))
+        file_path = raw_input()
+
+    job_data["user"] = user
+    job_data["job_tool"] = str(tool)
+    
+    if cwd != '':
+        file_path = cwd + "/" + file_path
+
+    job_data["file_path"] = file_path
+    res = requests.post( url+"create_job", json=job_data , headers={})
+    job_data = res.json()
+    
+    #Writing job index
+    job_data["file_path"] = file_path
+    jobs_index = open(home+"/.jobs/jobs_index","a+")
+    jobs_index.write(job_data["jobID"] + " :  " + job_data["file_path"] + " : " + job_data["created_at"] + "\n")
+    jobs_index.close()
+
+    #Writing job data to file
+    try:
+        os.mkdir(home + "/.jobs/" + job_data["jobID"])
+    except:
+        pass
+
+    job_data_file = open(home + "/.jobs/" + job_data["jobID"] + "/" + job_data["jobID"], "w")
+    job_data_file.write(job_data["status"] + " " + job_data["updated_at"])
+    job_data_file.close()
+
+    print(job_data)
+
+    print(colored(job_data["status"], status_colors[job_data["status"]]))
+    jobs = list_jobs(False)
+    status(jobs,len(jobs)-1)
+
+def list_jobs(print_flag=True):
+    try:
+        jobs_index = open(home + "/.jobs/jobs_index","r")
+    except IOError:
+        print("No jobs found")
+        return []
+    i = 0
+    jobs = []
+    for job in jobs_index:
+        jobID,file_path,created_at = job.split(":", 2)
+        created_at = created_at[:-1]
+        jobID = jobID.strip()
+        if print_flag:
+            print(colored("[" + str(i) + "] " + jobID + " " + file_path + " " + created_at, "blue"))
+        jobs.append({"jobID":jobID, "file_path":file_path, "created_at":created_at})
+        i += 1
+    return jobs
+
+def status(jobs=[], index=0):
+    if jobs == []:
+        if not args.index:
+            jobs = list_jobs()
+            index = input()
+        else:
+            jobs = list_jobs(False)
+            index = int(args.index)
+    job = jobs[index]
+    
+    while True:
+        os.system("clear")
+        print(colored("Press enter Ctrl+C to stop watching status", "red"))
+        print(colored("JOB_STATUS: " + job["jobID"] + " " + job["file_path"] + " " + job["created_at"]))
+        job_data_file = open(home + "/.jobs/" + job["jobID"] + "/" + job["jobID"], "r")
+        job_data = job_data_file.read()
+        status = job_data.split(" ",1)[0]
+        print(colored(job_data, status_colors[status]))
+        if status == "completed":
+            break
+        time.sleep(1)
+
+def result(jobs=[], index=0):
+    if jobs == []:
+        if not args.index:
+            jobs = list_jobs()
+            index = input()
+        else:
+            jobs = list_jobs(False)
+            index = int(args.index)
+    job = jobs[index]
+    os.system("cp " + home + "/.jobs/" + job["jobID"] + "/*  ." )
+    print(colored("Results files copied to current directory","green"))
+   
+
+args = parser.parse_args()
+if args.create:
+    create()
+elif args.list:
+    print("JOB LIST:")
+    list_jobs()
+elif args.status:
+    status()
+elif args.result:
+    result()

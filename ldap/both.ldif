@@ -1,0 +1,27 @@
+dn: uid=suraj,ou=People,dc=softinfi,dc=online
+uid: suraj
+cn: suraj
+sn: suraj
+mail: suraj@softinfi.online
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: top
+objectClass: shadowAccount
+userPassword: {crypt}x
+shadowLastChange: 17487
+shadowMin: 0
+shadowMax: 99999
+shadowWarning: 7
+loginShell: /bin/bash
+uidNumber: 1010
+gidNumber: 1010
+homeDirectory: /home/suraj
+
+dn: cn=suraj,ou=Group,dc=softinfi,dc=online
+objectClass: posixGroup
+objectClass: top
+cn: suraj
+userPassword: {crypt}x
+gidNumber: 1010
